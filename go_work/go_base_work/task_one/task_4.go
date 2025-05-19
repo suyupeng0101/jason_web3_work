@@ -6,7 +6,7 @@ package task_one
 // 考察：字符串处理、栈的使用
 // 题目：给定一个只包括 '('，')'，'{'，'}'，'['，']' 的字符串，判断字符串是否有效
 func isValid(s string) bool {
-	stack := []rune{} // 使用rune切片作为栈，存储左括号
+	stack := []rune{}       // 使用rune切片作为栈，存储左括号
 	pairs := map[rune]rune{ // 定义右括号到左括号的映射
 		')': '(',
 		']': '[',
@@ -16,7 +16,7 @@ func isValid(s string) bool {
 	for _, char := range s { // 遍历每个字符
 		if char == '(' || char == '[' || char == '{' { // 左括号入栈
 			stack = append(stack, char)
-		} else {                 // 处理右括号
+		} else { // 处理右括号
 			if len(stack) == 0 { // 栈空说明不匹配
 				return false
 			}
