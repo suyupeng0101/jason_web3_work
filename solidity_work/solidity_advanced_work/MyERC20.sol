@@ -20,46 +20,150 @@ pragma solidity ^0.8.30;
 
 contract MyERC20Contract {
 
-
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-
-    
-    // 账户余额
-    mapping (address account => uint256) private _balances;
-
-    // 授权信息
-    mapping(address account => mapping(address spender => uint256)) private _allowances;
-
-
-
-    // 账户管理者地址
-    address private owner;
     // 代币名称
     string private name;
     // 代币简称
     string private symbol;
+    // 小数位数
+    uint8 public decimals;
+    // 代币总量
+    uint256 private _totalSupply; 
+
+    // 合约拥有者地址
+    address public owner;
 
 
-    // 获取余额
-    function balanceOf(address account) public view returns (uint256) {
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals,
+        uint256 initialSupply
+    ) {                                                          // 构造函数，部署时初始化
+        name = _name;                                            // 设置代币名称
+        symbol = _symbol;                                        // 设置代币符号
+        decimals = _decimals;                                    // 设置小数位数
+        owner = msg.sender;                                      // 将部署者设为合约拥有者
+        _mint(msg.sender, initialSupply);                        // 铸造初始代币到拥有者地址
+    }
+    
+    // 账户余额映射
+    mapping(address => uint256) private _balances;
+
+    // 授权额度映射
+    mapping(address => mapping(address => uint256)) private _allowances;
+
+
+    // 检查调用者是否为拥有者
+    modifier onlyOwner() {                                        
+        require(msg.sender == owner, "Only owner can call");   
+        _;                                                        
+    }
+
+    // 转账事件
+    event Transfer(address indexed from, address indexed to, uint256 value);  
+    // 授权事件
+    event Approval(address indexed owner, address indexed spender, uint256 value); 
+
+    // 返回代币总量
+    function totalSupply() external view returns (uint256){
+        return _totalSupply; 
+    }
+
+
+    // 账户余额
+    function balanceOf(address account) external view returns (uint256){
         return _balances[account];
     }
 
 
-    //转账
-    function transfer(address to, uint256 val)public returns(bool){
-        require(msg.sender == to, "Not owner");
-        (bool success, ) = payable(to).call{value: val}("");
-        require(success, "Withdraw failed");
-        return success;
+    // 转账
+    function transfer(address to, uint256 amount) external returns (bool){
+        // 调用内部转账逻辑
+        _transfer(msg.sender, to, amount);                       
+        return true;   
     }
 
 
 
-    
+
+    // 返回授权额度
+    function allowance(address _owner, address spender) external view  returns (uint256) {
+        return _allowances[_owner][spender];                    
+    }
+
+
+    // 调用内部授权逻辑
+    function approve(address spender, uint256 amount) external  returns (bool) {
+        _approve(msg.sender, spender, amount);                  
+        return true;                                             
+    }
+
+    // 铸币函数，仅拥有者可调用
+    function mint(address to, uint256 amount) external onlyOwner { 
+        // 调用内部铸币逻辑
+        _mint(to, amount);                                       
+    }
+
+
+    // 授权转账
+    function transferFrom(address from, address to, uint256 amount) external returns(bool){
+        // 获取当前授权额度
+        uint256 currentAllowance = _allowances[from][msg.sender]; 
+        // 检查额度
+        require(currentAllowance >= amount, "transfer amount exceeds allowance"); 
+        // 扣减授权额度
+        _approve(from, msg.sender, currentAllowance - amount);
+        // 执行转账
+        _transfer(from, to, amount);
+        return true;
+    }
+
+
+
+    // 内部铸币实现
+    function _mint(address account, uint256 amount) internal {
+        // 非零地址检查
+        require(account != address(0), "ERC20: mint to zero address");
+        // 增加总供应量
+        _totalSupply += amount;
+        // 增加接收者余额
+        _balances[account] += amount;
+        // 触发铸币事件
+        emit Transfer(address(0), account, amount);
+    }
+
+    // 内部转账实现
+    function _transfer(address from, address to, uint256 amount) internal {
+        // 非零地址检查
+        require(from != address(0), "transfer from zero address");
+        require(to != address(0), "transfer from zero address");
+
+        // 发起者余额获取
+        uint256 fromBalance = _balances[from];
+
+        // 余额检查
+        require(fromBalance >= amount, "ERC20: transfer amount exceeds balance");
+
+        // 扣减发起者余额
+        _balances[from] = fromBalance - amount;
+        // 增加接收者余额
+        _balances[to] += amount;
+
+        //触发转账事件
+        emit Transfer(from, to, amount);
+    }
+
+    // 内部授权实现
+    function _approve (address _owner, address spender, uint256 amount) internal {
+        // 非零地址检查
+        require(_owner != address(0), "approve from zero address");
+        require(spender != address(0), "approve to zero address");
+        // 设置授权额度
+        _allowances[_owner][spender] = amount;
+        // 授权事件触发
+        emit Approval(_owner, spender, amount); 
+    }
+
 
 }
 
