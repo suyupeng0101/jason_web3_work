@@ -49,3 +49,68 @@ Geth（Go-Ethereum）是以太坊的核心参考实现之一，由Go语言开发
      - 矿工通过遍历Nonce寻找符合难度的区块哈希，验证时只需重新计算哈希（轻量级验证）。
    - PoS（合并后）：
      - 依赖`beacon-chain`（独立模块），Geth通过`consensus/clique`（PoA变种）支持测试网，主网合并后通过共识接口与信标链交互，实现权益证明验证。
+
+## 二、架构设计
+
+### 1、分层架构图
+
+![image-20250713143711477](E:\goomood\jason_web3_work\geth-work\Go-Ethereum核心功能与架构设计.assets\image-20250713143711477.png)
+
+（1）P2P网络层
+
+les（轻节点协议）：
+
+- 实现轻客户端（Light Client）通信协议，允许节点仅同步区块头，通过「证明请求」获取特定账户或合约数据（减少存储占用80%+）。
+- 支持「范围查询」（如获取某区块的交易哈希列表），通过哈希证明确保数据完整性。
+
+（2）区块链协议层
+
+core/types（区块数据结构）：
+
+- `Block`结构体包含区块头（`BlockHeader`）、交易列表（`Transactions`）、叔块列表（`Uncles`）。
+- `BlockHeader`存储核心元数据：父哈希、状态根（MPT根哈希）、交易根、Receipt根、难度、时间戳等。
+
+（3）状态存储层
+
+- trie（默克尔树实现）：
+  - 实现Merkle Patricia Trie（MPT树），支持键值对高效存储（账户地址→账户状态，合约存储键→值）。
+  - 每个节点变更生成新的根哈希，通过区块头的「状态根」链接，确保状态不可篡改。
+
+（4）P2P网络层
+
+- 预编译合约（`core/vm/precompiles`）：
+  - 内置高效实现的常用合约（如ECDSA签名验证、SHA256哈希），比Solidity合约执行效率高50-100倍。
+  - 典型案例：`ecrecover`预编译合约用于链上签名验证，避免EVM解释执行开销。
+
+## 三、交易流程图
+
+![image-20250713152426670](E:\goomood\jason_web3_work\geth-work\Go-Ethereum核心功能与架构设计.assets\image-20250713152426670.png)
+
+## 四、账户状态存储模型
+
+数据结构：
+
+每个账户存储为MPT树的叶子节点，键为账户地址（20字节），值为`Account`结构体（`core/state/state_object.go`）：
+
+```
+type Account struct {
+  Nonce    uint64 // 交易计数器
+  Balance  *big.Int // 账户余额
+  Root     common.Hash // 合约存储根（空账户为零哈希）
+  CodeHash []byte // 合约代码哈希（空账户为全零）
+}
+```
+
+- 存储流程：
+  1. 交易执行时，通过`state.StateDB.GetAccount`获取账户。
+  2. 修改余额/Nonce后，调用`state.StateDB.SetAccount`写入MPT树。
+  3. 区块提交时，生成新的状态根哈希，链接到区块头。
+
+## 五、总结
+
+Geth通过分层架构实现了区块链核心功能的解耦：
+
+- P2P网络层保障节点通信，
+- 区块链协议层处理交易验证与区块同步，
+- 状态存储层利用MPT树高效管理账户数据，
+- EVM执行层提供智能合约运行环境。
