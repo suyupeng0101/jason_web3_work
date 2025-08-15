@@ -1,0 +1,16 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["dependencies"] # <= This is important to be added
+gas_reports = ["*"]  # 表示启用对所有合约的 Gas 消耗报告生成。 如果只想对特定合约生成报告，可以指定合约名称 gas_reports = ["MyContract", "MyOtherContract"]。
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+
+[dependencies] # <= Dependencies will be added under this config
+"@openzeppelin-contracts" = { version = "5.0.2" }
+"@uniswap-universal-router" = { version = "1.6.0" }
+"@prb-math" = { version = "4.0.2" }
+forge-std = { version = "1.10.0" }  # 确保版本号正确 -1.10.0
+
+[soldeer]
+recursive_deps = true  # 表示启用递归依赖安装模式。
